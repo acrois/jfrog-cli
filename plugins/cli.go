@@ -36,6 +36,7 @@ func GetCommands() []cli.Command {
 		{
 			Name:         "publish",
 			Aliases:      []string{"p"},
+			Flags:        cliutils.GetCommandFlags(cliutils.Upload),
 			Usage:        publishdocs.GetDescription(),
 			HelpName:     corecommon.CreateUsage("plugin publish", publishdocs.GetDescription(), publishdocs.Usage),
 			UsageText:    publishdocs.GetArguments(),
@@ -45,3 +46,18 @@ func GetCommands() []cli.Command {
 		},
 	})
 }
+
+/*
+{
+	Name:         "upload",
+	Flags:        cliutils.GetCommandFlags(cliutils.Upload),
+	Aliases:      []string{"u"},
+	Usage:        upload.GetDescription(),
+	HelpName:     corecommon.CreateUsage("rt upload", upload.GetDescription(), upload.Usage),
+	UsageText:    upload.GetArguments(),
+	ArgsUsage:    common.CreateEnvVars(upload.EnvVar...),
+	BashComplete: corecommon.CreateBashCompletionFunc(),
+	Action:       uploadCmd,
+	Category:     filesCategory,
+},
+*/
