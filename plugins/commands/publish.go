@@ -41,7 +41,7 @@ func PublishCmd(c *cli.Context) error {
 		return cliutils.WrongNumberOfArgumentsHandler(c)
 	}
 
-	pc := *&PublishOptionalConfig{}
+	pc := &PublishOptionalConfig{}
 
 	// upload config pass-thru
 	configuration, err := cliutils.CreateUploadConfiguration(c)
