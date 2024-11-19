@@ -99,7 +99,7 @@ func doPublish(pluginName, pluginVersion string, rtDetails *config.ServerDetails
 	// Build and upload the plugin for all architectures.
 	// Start with the local architecture, to assert versions match before uploading.
 	for _, arc := range arcs {
-		pluginPath, err := buildPlugin(pluginName, tmpDir, utils.ArchitecturesMap[arc])
+		pluginPath, err := buildPlugin(pluginName, tmpDir, utils.ArchitecturesMap[arc], pc)
 		if err != nil {
 			return err
 		}
@@ -154,16 +154,25 @@ func verifyMatchingVersion(pluginFullPath, pluginVersion string) error {
 	return utils.AssertPluginVersion(output, pluginVersion)
 }
 
-func buildPlugin(pluginName, tmpDir string, arc utils.Architecture) (string, error) {
+func buildPlugin(pluginName, tmpDir string, arc utils.Architecture, pc *PublishOptionalConfig) (string, error) {
 	log.Info("Building plugin for: " + arc.Goos + "-" + arc.Goarch + "...")
 	outputPath := filepath.Join(tmpDir, pluginName+arc.FileExtension)
 	buildCmd := utils.PluginBuildCmd{
 		OutputFullPath: outputPath,
+		// TODO: pipe in ENV from c cli.Context?
 		Env: map[string]string{
 			"GOOS":   arc.Goos,
 			"GOARCH": arc.Goarch,
 		},
+		UseRtGo: true,
 	}
+
+	// if optional build info is set, prepend "jf rt" in front of "go" build command
+	if pc.build != nil {
+		buildCmd.UseRtGo = true
+		buildCmd.Build = pc.build
+	}
+
 	err := io.RunCmd(&buildCmd)
 	if err != nil {
 		return "", errorutils.CheckError(err)
