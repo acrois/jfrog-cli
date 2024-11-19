@@ -1,15 +1,17 @@
 package utils
 
 import (
-	"github.com/jfrog/jfrog-cli-core/v2/utils/config"
-	"github.com/jfrog/jfrog-client-go/utils/errorutils"
-	"github.com/jfrog/jfrog-client-go/utils/io/httputils"
 	"io"
 	"os"
 	"os/exec"
 	"path"
 	"runtime"
 	"strings"
+
+	"github.com/jfrog/jfrog-cli-core/v2/common/build"
+	"github.com/jfrog/jfrog-cli-core/v2/utils/config"
+	"github.com/jfrog/jfrog-client-go/utils/errorutils"
+	"github.com/jfrog/jfrog-client-go/utils/io/httputils"
 )
 
 const (
@@ -132,11 +134,18 @@ func AssertPluginVersion(versionCmdOut string, expectedPluginVersion string) err
 type PluginBuildCmd struct {
 	OutputFullPath string
 	Env            map[string]string
+	UseRtGo        bool
+	Build          *build.BuildConfiguration
 }
 
 func (buildCmd *PluginBuildCmd) GetCmd() *exec.Cmd {
 	var cmd []string
-	cmd = append(cmd, []string{"go", "build", "-o"}...)
+
+	if buildCmd.UseRtGo {
+		cmd = append(cmd, "jf", "rt")
+	}
+
+	cmd = append(cmd, "go", "build", "-o")
 	cmd = append(cmd, buildCmd.OutputFullPath)
 	return exec.Command(cmd[0], cmd[1:]...)
 }
