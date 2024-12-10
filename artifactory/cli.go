@@ -2323,8 +2323,9 @@ func transferConfigCmd(c *cli.Context) error {
 		SetPreChecks(c.Bool(cliutils.PreChecks)).
 		SetSourceWorkingDir(c.String(cliutils.SourceWorkingDir)).
 		SetTargetWorkingDir(c.String(cliutils.TargetWorkingDir)).
-		SetInteractive(c.Bool(cliutils.Interactive)).
-		SetIncludeReposPatterns(includeReposPatterns).
+		SetInteractive(c.Bool(cliutils.Interactive))
+
+	transferConfigCmd.SetIncludeReposPatterns(includeReposPatterns).
 		SetExcludeReposPatterns(excludeReposPatterns)
 
 	return transferConfigCmd.Run()
