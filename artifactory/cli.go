@@ -3,11 +3,11 @@ package artifactory
 import (
 	"errors"
 	"fmt"
-	"github.com/jfrog/jfrog-cli/docs/artifactory/cocoapodsconfig"
-	"github.com/jfrog/jfrog-cli/docs/artifactory/swiftconfig"
 	"os"
 	"strconv"
 	"strings"
+
+	"github.com/jfrog/jfrog-cli/docs/artifactory/cocoapodsconfig"
 
 	ioutils "github.com/jfrog/gofrog/io"
 	"github.com/jfrog/jfrog-cli/utils/accesstoken"
@@ -419,19 +419,6 @@ func GetCommands() []cli.Command {
 			BashComplete: corecommon.CreateBashCompletionFunc(),
 			Action: func(c *cli.Context) error {
 				return cliutils.RunConfigCmdWithDeprecationWarning("cocoapodsc", "rt", project.Cocoapods, c, cliutils.CreateConfigCmd)
-			},
-		},
-		{
-			Name:         "swift-config",
-			Hidden:       true,
-			Aliases:      []string{"swiftc"},
-			Flags:        cliutils.GetCommandFlags(cliutils.SwiftConfig),
-			Usage:        gradleconfig.GetDescription(),
-			HelpName:     corecommon.CreateUsage("rt swift-config", swiftconfig.GetDescription(), swiftconfig.Usage),
-			ArgsUsage:    common.CreateEnvVars(),
-			BashComplete: corecommon.CreateBashCompletionFunc(),
-			Action: func(c *cli.Context) error {
-				return cliutils.RunConfigCmdWithDeprecationWarning("swiftc", "rt", project.Swift, c, cliutils.CreateConfigCmd)
 			},
 		},
 		{
@@ -2329,13 +2316,16 @@ func transferConfigCmd(c *cli.Context) error {
 	}
 
 	// Run transfer config command
-	transferConfigCmd := transferconfigcore.NewTransferConfigCommand(sourceServerDetails, targetServerDetails).
-		SetForce(c.Bool(cliutils.Force)).SetVerbose(c.Bool(cliutils.Verbose)).SetPreChecks(c.Bool(cliutils.PreChecks)).
-		SetSourceWorkingDir(c.String(cliutils.SourceWorkingDir)).
-		SetTargetWorkingDir(c.String(cliutils.TargetWorkingDir))
 	includeReposPatterns, excludeReposPatterns := getTransferIncludeExcludeRepos(c)
-	transferConfigCmd.SetIncludeReposPatterns(includeReposPatterns)
-	transferConfigCmd.SetExcludeReposPatterns(excludeReposPatterns)
+	transferConfigCmd := transferconfigcore.NewTransferConfigCommand(sourceServerDetails, targetServerDetails).
+		SetForce(c.Bool(cliutils.Force)).
+		SetVerbose(c.Bool(cliutils.Verbose)).
+		SetPreChecks(c.Bool(cliutils.PreChecks)).
+		SetSourceWorkingDir(c.String(cliutils.SourceWorkingDir)).
+		SetTargetWorkingDir(c.String(cliutils.TargetWorkingDir)).
+		SetInteractive(c.Bool(cliutils.Interactive)).
+		SetIncludeReposPatterns(includeReposPatterns).
+		SetExcludeReposPatterns(excludeReposPatterns)
 
 	return transferConfigCmd.Run()
 }

@@ -38,7 +38,6 @@ const (
 	Mvn                    = "mvn"
 	MvnConfig              = "mvn-config"
 	CocoapodsConfig        = "cocoapods-config"
-	SwiftConfig            = "swift-config"
 	Gradle                 = "gradle"
 	GradleConfig           = "gradle-config"
 	DockerPromote          = "docker-promote"
@@ -542,6 +541,7 @@ const (
 	transferFilesStatus = transferFilesPrefix + "status"
 	Stop                = "stop"
 	PreChecks           = "prechecks"
+	Interactive         = "interactive"
 
 	// Transfer flags
 	IncludeRepos    = "include-repos"
@@ -1630,9 +1630,9 @@ var flagsMap = map[string]cli.Flag{
 		Name:  PreChecks,
 		Usage: "[Default: false] Set to true to run pre-transfer checks.` `",
 	},
-	lcSync: cli.BoolTFlag{
+	lcSync: cli.BoolFlag{
 		Name:  Sync,
-		Usage: "[Default: true] Set to false to run asynchronously.` `",
+		Usage: "[Default: false] Set to true to run synchronously.` `",
 	},
 	lcProject: cli.StringFlag{
 		Name:  Project,
@@ -1820,9 +1820,6 @@ var commandFlags = map[string][]string{
 	CocoapodsConfig: {
 		global, serverIdResolve, repoResolve,
 	},
-	SwiftConfig: {
-		global, serverIdResolve, repoResolve,
-	},
 	MvnConfig: {
 		global, serverIdResolve, serverIdDeploy, repoResolveReleases, repoResolveSnapshots, repoDeployReleases, repoDeploySnapshots, includePatterns, excludePatterns, UseWrapper,
 	},
@@ -1910,7 +1907,7 @@ var commandFlags = map[string][]string{
 		buildName, buildNumber, module, Project,
 	},
 	TransferConfig: {
-		Force, Verbose, IncludeRepos, ExcludeRepos, SourceWorkingDir, TargetWorkingDir, PreChecks,
+		interactive, Force, Verbose, IncludeRepos, ExcludeRepos, SourceWorkingDir, TargetWorkingDir, PreChecks,
 	},
 	TransferConfigMerge: {
 		IncludeRepos, ExcludeRepos, IncludeProjects, ExcludeProjects,
