@@ -157,20 +157,30 @@ func verifyMatchingVersion(pluginFullPath, pluginVersion string) error {
 func buildPlugin(pluginName, tmpDir string, arc utils.Architecture, pc *PublishOptionalConfig) (string, error) {
 	log.Info("Building plugin for: " + arc.Goos + "-" + arc.Goarch + "...")
 	outputPath := filepath.Join(tmpDir, pluginName+arc.FileExtension)
+	log.Debug("Plugin output path: ", outputPath)
+
 	buildCmd := utils.PluginBuildCmd{
 		OutputFullPath: outputPath,
 		// TODO: pipe in ENV from c cli.Context?
 		Env: map[string]string{
-			"GOOS":   arc.Goos,
-			"GOARCH": arc.Goarch,
+			"GOOS":        arc.Goos,
+			"GOARCH":      arc.Goarch,
+			"CGO_ENABLED": os.Getenv("CGO_ENABLED"),
 		},
-		UseRtGo: true,
+		UseJf:        false,
+		JfNoFallback: false,
 	}
 
 	// if optional build info is set, prepend "jf rt" in front of "go" build command
 	if pc.build != nil {
-		buildCmd.UseRtGo = true
+		buildCmd.UseJf = true // required for Build to work
 		buildCmd.Build = pc.build
+	}
+
+	if buildCmd.UseJf {
+		// if we are using JF for go build we can use the --no-fallback option
+		// TODO: pipe arg from context
+		buildCmd.JfNoFallback = true
 	}
 
 	err := io.RunCmd(&buildCmd)

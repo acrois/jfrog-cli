@@ -541,6 +541,7 @@ const (
 	transferFilesStatus = transferFilesPrefix + "status"
 	Stop                = "stop"
 	PreChecks           = "prechecks"
+	Interactive         = "interactive"
 
 	// Transfer flags
 	IncludeRepos    = "include-repos"
@@ -1906,7 +1907,7 @@ var commandFlags = map[string][]string{
 		buildName, buildNumber, module, Project,
 	},
 	TransferConfig: {
-		Force, Verbose, IncludeRepos, ExcludeRepos, SourceWorkingDir, TargetWorkingDir, PreChecks,
+		interactive, Force, Verbose, IncludeRepos, ExcludeRepos, SourceWorkingDir, TargetWorkingDir, PreChecks,
 	},
 	TransferConfigMerge: {
 		IncludeRepos, ExcludeRepos, IncludeProjects, ExcludeProjects,
