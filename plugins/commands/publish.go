@@ -32,8 +32,9 @@ const pluginVersionCommandName = "-v"
 
 // optional pass-thru to upload commands
 type PublishOptionalConfig struct {
-	build  *build.BuildConfiguration
-	config *artifactoryUtils.UploadConfiguration
+	build     *build.BuildConfiguration
+	config    *artifactoryUtils.UploadConfiguration
+	overwrite bool
 }
 
 func PublishCmd(c *cli.Context) error {
@@ -61,6 +62,10 @@ func PublishCmd(c *cli.Context) error {
 
 	pc.build = buildConfiguration
 
+	if c.Bool("force") {
+		pc.overwrite = true
+	}
+
 	// rt details pass-thru
 	rtDetails, err := getRtDetails(c)
 	if err != nil {
@@ -71,9 +76,13 @@ func PublishCmd(c *cli.Context) error {
 }
 
 func runPublishCmd(pluginName, pluginVersion string, rtDetails *config.ServerDetails, pc *PublishOptionalConfig) error {
-	err := verifyUniqueVersion(pluginName, pluginVersion, rtDetails)
-	if err != nil {
-		return err
+	// if overwrite flag is set then we will skip
+	// normally, it will be false, causing the version check to run
+	if !pc.overwrite {
+		err := verifyUniqueVersion(pluginName, pluginVersion, rtDetails)
+		if err != nil {
+			return err
+		}
 	}
 
 	return doPublish(pluginName, pluginVersion, rtDetails, pc)

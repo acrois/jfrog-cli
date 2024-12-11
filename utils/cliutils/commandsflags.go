@@ -18,6 +18,7 @@ const (
 	Intro = "intro"
 
 	// Artifactory's Commands Keys
+	PluginPublish          = "plugin-publish"
 	DeleteConfig           = "delete-config"
 	Upload                 = "upload"
 	Download               = "download"
@@ -201,6 +202,7 @@ const (
 	MinSplit                = "min-split"
 	SplitCount              = "split-count"
 	ChunkSize               = "chunk-size"
+	force                   = "force"
 
 	// Config flags
 	interactive   = "interactive"
@@ -1718,6 +1720,10 @@ var flagsMap = map[string]cli.Flag{
 		Name:  Reference,
 		Usage: "[Default: false] Generate a Reference Token (alias to Access Token) in addition to the full token (available from Artifactory 7.38.10)` `",
 	},
+	force: cli.BoolFlag{
+		Name:  force,
+		Usage: "[Default: false] Set to true to allow overwriting assets.` `",
+	},
 }
 
 var commandFlags = map[string][]string{
@@ -1737,6 +1743,13 @@ var commandFlags = map[string][]string{
 		ClientCertKeyPath, specFlag, specVars, buildName, buildNumber, module, uploadExclusions, deb,
 		uploadRecursive, uploadFlat, uploadRegexp, retries, retryWaitTime, dryRun, uploadExplode, symlinks, includeDirs,
 		failNoOp, threads, uploadSyncDeletes, syncDeletesQuiet, InsecureTls, detailedSummary, Project,
+		uploadAnt, uploadArchive, uploadMinSplit, uploadSplitCount, ChunkSize,
+	},
+	PluginPublish: {
+		url, force, user, password, accessToken, sshPassphrase, sshKeyPath, serverId, ClientCertPath, uploadTargetProps,
+		ClientCertKeyPath, specVars, buildName, buildNumber, module, uploadExclusions, deb,
+		retries, retryWaitTime, dryRun, uploadExplode, symlinks, includeDirs,
+		failNoOp, InsecureTls, detailedSummary, Project,
 		uploadAnt, uploadArchive, uploadMinSplit, uploadSplitCount, ChunkSize,
 	},
 	Download: {

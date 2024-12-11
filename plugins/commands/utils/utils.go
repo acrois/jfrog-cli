@@ -185,7 +185,10 @@ func (buildCmd *PluginBuildCmd) GetCmd() *exec.Cmd {
 }
 
 func (buildCmd *PluginBuildCmd) GetEnv() map[string]string {
-	buildCmd.Env["CGO_ENABLED"] = "0"
+	// don't override CGO_ENABLED if it was set to 1
+	if buildCmd.Env["CGO_ENABLED"] == "" {
+		buildCmd.Env["CGO_ENABLED"] = "0"
+	}
 	return buildCmd.Env
 }
 
