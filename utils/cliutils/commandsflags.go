@@ -587,6 +587,8 @@ const (
 	lcDryRun             = lifecyclePrefix + dryRun
 	lcIncludeRepos       = lifecyclePrefix + IncludeRepos
 	lcExcludeRepos       = lifecyclePrefix + ExcludeRepos
+
+	SkipProjectAssignments = "skip-project-assignments"
 )
 
 var flagsMap = map[string]cli.Flag{
@@ -1723,6 +1725,10 @@ var flagsMap = map[string]cli.Flag{
 		Name:  Reference,
 		Usage: "[Default: false] Generate a Reference Token (alias to Access Token) in addition to the full token (available from Artifactory 7.38.10)` `",
 	},
+	SkipProjectAssignments: cli.BoolFlag{
+		Name:  SkipProjectAssignments,
+		Usage: "[Default: false] Set to true if you'd like the command to gracefully ignore errors with project assignments.` `",
+	},
 }
 
 var commandFlags = map[string][]string{
@@ -1915,10 +1921,10 @@ var commandFlags = map[string][]string{
 		BuildName, BuildNumber, module, Project,
 	},
 	TransferConfig: {
-		Force, Verbose, IncludeRepos, ExcludeRepos, SourceWorkingDir, TargetWorkingDir, PreChecks,
+		Force, Verbose, IncludeRepos, ExcludeRepos, SourceWorkingDir, TargetWorkingDir, PreChecks, SkipProjectAssignments,
 	},
 	TransferConfigMerge: {
-		IncludeRepos, ExcludeRepos, IncludeProjects, ExcludeProjects,
+		IncludeRepos, ExcludeRepos, IncludeProjects, ExcludeProjects, SkipProjectAssignments,
 	},
 	Ping: {
 		url, user, password, accessToken, sshPassphrase, sshKeyPath, serverId, ClientCertPath,

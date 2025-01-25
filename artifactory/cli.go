@@ -3,11 +3,12 @@ package artifactory
 import (
 	"errors"
 	"fmt"
-	"github.com/jfrog/jfrog-cli/docs/artifactory/cocoapodsconfig"
-	"github.com/jfrog/jfrog-cli/docs/artifactory/swiftconfig"
 	"os"
 	"strconv"
 	"strings"
+
+	"github.com/jfrog/jfrog-cli/docs/artifactory/cocoapodsconfig"
+	"github.com/jfrog/jfrog-cli/docs/artifactory/swiftconfig"
 
 	ioutils "github.com/jfrog/gofrog/io"
 	"github.com/jfrog/jfrog-cli/utils/accesstoken"
@@ -2382,14 +2383,21 @@ func transferConfigCmd(c *cli.Context) error {
 		return err
 	}
 
+	skipProjectAssignments := c.Bool(cliutils.SkipProjectAssignments)
+
 	// Run transfer config command
-	transferConfigCmd := transferconfigcore.NewTransferConfigCommand(sourceServerDetails, targetServerDetails).
-		SetForce(c.Bool(cliutils.Force)).SetVerbose(c.Bool(cliutils.Verbose)).SetPreChecks(c.Bool(cliutils.PreChecks)).
+	transferConfigCmd := transferconfigcore.
+		NewTransferConfigCommand(sourceServerDetails, targetServerDetails).
+		SetForce(c.Bool(cliutils.Force)).
+		SetVerbose(c.Bool(cliutils.Verbose)).
+		SetPreChecks(c.Bool(cliutils.PreChecks)).
 		SetSourceWorkingDir(c.String(cliutils.SourceWorkingDir)).
 		SetTargetWorkingDir(c.String(cliutils.TargetWorkingDir))
 	includeReposPatterns, excludeReposPatterns := getTransferIncludeExcludeRepos(c)
-	transferConfigCmd.SetIncludeReposPatterns(includeReposPatterns)
-	transferConfigCmd.SetExcludeReposPatterns(excludeReposPatterns)
+	transferConfigCmd.
+		SetIncludeReposPatterns(includeReposPatterns).
+		SetExcludeReposPatterns(excludeReposPatterns).
+		SetSkipProjectAssignments(skipProjectAssignments)
 
 	return transferConfigCmd.Run()
 }
@@ -2414,9 +2422,15 @@ func transferConfigMergeCmd(c *cli.Context) error {
 	// Run transfer config command
 	includeReposPatterns, excludeReposPatterns := getTransferIncludeExcludeRepos(c)
 	includeProjectsPatterns, excludeProjectsPatterns := getTransferIncludeExcludeProjects(c)
+	skipProjectAssignments := c.Bool(cliutils.SkipProjectAssignments)
+
 	transferConfigMergeCmd := transferconfigmergecore.NewTransferConfigMergeCommand(sourceServerDetails, targetServerDetails).
-		SetIncludeProjectsPatterns(includeProjectsPatterns).SetExcludeProjectsPatterns(excludeProjectsPatterns)
-	transferConfigMergeCmd.SetIncludeReposPatterns(includeReposPatterns).SetExcludeReposPatterns(excludeReposPatterns)
+		SetIncludeProjectsPatterns(includeProjectsPatterns).
+		SetExcludeProjectsPatterns(excludeProjectsPatterns)
+	transferConfigMergeCmd.
+		SetIncludeReposPatterns(includeReposPatterns).
+		SetExcludeReposPatterns(excludeReposPatterns).
+		SetSkipProjectAssignments(skipProjectAssignments)
 	_, err = transferConfigMergeCmd.Run()
 	return err
 }
