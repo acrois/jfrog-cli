@@ -36,7 +36,7 @@ func GetCommands() []cli.Command {
 		{
 			Name:         "publish",
 			Aliases:      []string{"p"},
-			Flags:        cliutils.GetCommandFlags(cliutils.Upload),
+			Flags:        cliutils.GetCommandFlags(cliutils.PluginPublish),
 			Usage:        publishdocs.GetDescription(),
 			HelpName:     corecommon.CreateUsage("plugin publish", publishdocs.GetDescription(), publishdocs.Usage),
 			UsageText:    publishdocs.GetArguments(),

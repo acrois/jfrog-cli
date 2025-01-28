@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/jfrog/jfrog-cli-artifactory/cliutils/flagkit"
 	"io"
 	"net/http"
 	"os"
@@ -17,6 +16,7 @@ import (
 	"github.com/jfrog/jfrog-client-go/utils/log"
 
 	corecontainercmds "github.com/jfrog/jfrog-cli-artifactory/artifactory/commands/container"
+	"github.com/jfrog/jfrog-cli-artifactory/cliutils/flagkit"
 	commandUtils "github.com/jfrog/jfrog-cli-core/v2/artifactory/commands/utils"
 	artifactoryUtils "github.com/jfrog/jfrog-cli-core/v2/artifactory/utils"
 	buildUtils "github.com/jfrog/jfrog-cli-core/v2/common/build"

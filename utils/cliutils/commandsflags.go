@@ -115,6 +115,18 @@ const (
 	// TransferInstall commands keys
 	TransferInstall = "transfer-plugin-install"
 
+	// Lifecycle commands keys
+	ReleaseBundleCreate       = "release-bundle-create"
+	ReleaseBundlePromote      = "release-bundle-promote"
+	ReleaseBundleDistribute   = "release-bundle-distribute"
+	ReleaseBundleDeleteLocal  = "release-bundle-delete-local"
+	ReleaseBundleDeleteRemote = "release-bundle-delete-remote"
+	ReleaseBundleExport       = "release-bundle-export"
+	ReleaseBundleImport       = "release-bundle-import"
+
+	// plugin commands keys
+	PluginPublish = "plugin-publish"
+
 	// Access Token Create commands keys
 	AccessTokenCreate = "access-token-create"
 	ExchangeOidcToken = "exchange-oidc-token"
@@ -570,11 +582,25 @@ const (
 	InstallPluginHomeDir = "home-dir"
 
 	// Unique lifecycle flags
-	Builds         = "builds"
-	ReleaseBundles = "release-bundles"
-	SigningKey     = "signing-key"
-	setupRepo      = repo
-	PromotionType  = "promotion-type"
+	lifecyclePrefix      = "lc-"
+	lcSync               = lifecyclePrefix + Sync
+	lcProject            = lifecyclePrefix + Project
+	Builds               = "builds"
+	lcBuilds             = lifecyclePrefix + Builds
+	ReleaseBundles       = "release-bundles"
+	lcReleaseBundles     = lifecyclePrefix + ReleaseBundles
+	SigningKey           = "signing-key"
+	lcSigningKey         = lifecyclePrefix + SigningKey
+	PathMappingPattern   = "mapping-pattern"
+	lcPathMappingPattern = lifecyclePrefix + PathMappingPattern
+	PathMappingTarget    = "mapping-target"
+	lcPathMappingTarget  = lifecyclePrefix + PathMappingTarget
+	lcDryRun             = lifecyclePrefix + dryRun
+	lcIncludeRepos       = lifecyclePrefix + IncludeRepos
+	lcExcludeRepos       = lifecyclePrefix + ExcludeRepos
+
+	// plugin flags
+	PluginPublishForce = "plugin-publish-" + Force // alias to force, different description
 )
 
 var flagsMap = map[string]cli.Flag{
@@ -1236,6 +1262,10 @@ var flagsMap = map[string]cli.Flag{
 		Name:  Force,
 		Usage: "[Default: false] Set to true to allow config transfer to a non-empty Artifactory server.` `",
 	},
+	PluginPublishForce: cli.BoolFlag{
+		Name:  Force,
+		Usage: "[Default: false] Set to true to overwrite existing files and ignore failed architectures.` `",
+	},
 	Verbose: cli.BoolFlag{
 		Name:  Verbose,
 		Usage: "[Default: false] Set to true to increase verbosity during the export configuration from the source Artifactory phase.` `",
@@ -1710,7 +1740,6 @@ var flagsMap = map[string]cli.Flag{
 	runNative: cli.BoolFlag{
 		Name:  runNative,
 		Usage: "[Default: false] Set to true if you'd like to use the native client configurations. Note: This flag would invoke native client behind the scenes, has performance implications and does not support deployment view and detailed summary` `",
-	
 	},
 	validateSha: cli.BoolFlag{
 		Name:  validateSha,
@@ -2042,8 +2071,23 @@ var commandFlags = map[string][]string{
 	SyncStatus: {
 		branch, repository, serverId,
 	},
-	Setup: {
-		serverId, url, user, password, accessToken, sshPassphrase, sshKeyPath, ClientCertPath, ClientCertKeyPath, Project, setupRepo,
+	// Plugin commands
+	PluginPublish: {
+		// relevant upload commands
+		// url, user, password, accessToken, sshPassphrase, sshKeyPath, serverId,
+		// ClientCertPath,
+		// ClientCertKeyPath, specFlag, specVars, uploadExclusions,
+		// uploadRecursive, uploadFlat, uploadRegexp, retries, retryWaitTime, dryRun, uploadExplode, includeDirs,
+		// failNoOp, uploadSyncDeletes, syncDeletesQuiet, InsecureTls, detailedSummary,
+		// uploadAnt, uploadArchive,
+		// uploadTargetProps,
+		threads, deb, uploadMinSplit, uploadSplitCount, ChunkSize,
+		// relevant build commands
+		BuildName, BuildNumber, module, Project,
+		// publish-specific flags
+		PluginPublishForce,
+		// general re-used
+		symlinks,
 	},
 }
 
