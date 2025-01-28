@@ -8,13 +8,14 @@ import (
 	"strings"
 
 	"github.com/jfrog/archiver/v3"
-	ioutils "github.com/jfrog/jfrog-client-go/utils/io"
-
+	artifactoryUtils "github.com/jfrog/jfrog-cli-core/v2/artifactory/utils"
 	"github.com/jfrog/jfrog-cli-core/v2/utils/config"
 	"github.com/jfrog/jfrog-cli-core/v2/utils/plugins"
 	commandsUtils "github.com/jfrog/jfrog-cli/plugins/commands/utils"
 	clientUtils "github.com/jfrog/jfrog-client-go/utils"
+	ioutils "github.com/jfrog/jfrog-client-go/utils/io"
 
+	"github.com/jfrog/jfrog-cli-core/v2/common/build"
 	"github.com/jfrog/jfrog-cli-core/v2/common/progressbar"
 	"github.com/jfrog/jfrog-cli-core/v2/utils/coreutils"
 	"github.com/jfrog/jfrog-cli/utils/cliutils"
@@ -26,22 +27,52 @@ import (
 	"github.com/urfave/cli"
 )
 
+type InstallOptionalConfig struct {
+	build  *build.BuildConfiguration
+	config *artifactoryUtils.DownloadConfiguration
+}
+
 func InstallCmd(c *cli.Context) error {
 	if c.NArg() != 1 {
 		return cliutils.WrongNumberOfArgumentsHandler(c)
 	}
+
 	err := assertValidEnv(c)
+
 	if err != nil {
 		return err
 	}
+
 	err = plugins.CheckPluginsVersionAndConvertIfNeeded()
+
 	if err != nil {
 		return err
 	}
-	return runInstallCmd(c.Args().Get(0))
+
+	ic := &InstallOptionalConfig{}
+
+	// download config pass-thru
+	configuration, err := cliutils.CreateDownloadConfiguration(c)
+
+	if err != nil {
+		return err
+	}
+
+	ic.config = configuration
+
+	// build configuration pass-thru
+	buildConfiguration, err := cliutils.CreateBuildConfigurationWithModule(c)
+
+	if err != nil {
+		return err
+	}
+
+	ic.build = buildConfiguration
+
+	return runInstallCmd(c.Args().Get(0), ic)
 }
 
-func runInstallCmd(requestedPlugin string) error {
+func runInstallCmd(requestedPlugin string, ic *InstallOptionalConfig) error {
 	pluginName, version, err := getNameAndVersion(requestedPlugin)
 	if err != nil {
 		return err
@@ -71,7 +102,7 @@ func runInstallCmd(requestedPlugin string) error {
 		return errorutils.CheckErrorf("the plugin with the requested version already exists locally")
 	}
 
-	return downloadPlugin(pluginsDir, pluginName, execDownloadUrl, commandsUtils.CreatePluginsHttpDetails(&serverDetails))
+	return downloadPlugin(pluginsDir, pluginName, execDownloadUrl, commandsUtils.CreatePluginsHttpDetails(&serverDetails), ic)
 }
 
 // Assert repo env is not passed without server env.
@@ -163,7 +194,7 @@ func createPluginsDir(pluginsDir string) error {
 	return err
 }
 
-func downloadPlugin(pluginsDir, pluginName, downloadUrl string, httpDetails httputils.HttpClientDetails) (err error) {
+func downloadPlugin(pluginsDir, pluginName, downloadUrl string, httpDetails httputils.HttpClientDetails, ic *InstallOptionalConfig) (err error) {
 	// Init progress bar.
 	progressMgr, err := progressbar.InitFilesProgressBarIfPossible(true)
 	if err != nil {
@@ -178,11 +209,11 @@ func downloadPlugin(pluginsDir, pluginName, downloadUrl string, httpDetails http
 		}()
 	}
 
-	err = downloadPluginExec(downloadUrl, pluginName, pluginsDir, httpDetails, progressMgr)
+	err = downloadPluginExec(downloadUrl, pluginName, pluginsDir, httpDetails, progressMgr, ic)
 	if err != nil {
 		return
 	}
-	err = downloadPluginsResources(downloadUrl, pluginName, pluginsDir, httpDetails, progressMgr)
+	err = downloadPluginsResources(downloadUrl, pluginName, pluginsDir, httpDetails, progressMgr, ic)
 	if err != nil {
 		return
 	}
@@ -201,8 +232,10 @@ func getNameAndVersion(requested string) (name, version string, err error) {
 	return split[0], split[1], nil
 }
 
-func downloadPluginExec(downloadUrl, pluginName, pluginsDir string, httpDetails httputils.HttpClientDetails, progressMgr ioutils.ProgressMgr) (err error) {
+func downloadPluginExec(downloadUrl, pluginName, pluginsDir string, httpDetails httputils.HttpClientDetails, progressMgr ioutils.ProgressMgr, ic *InstallOptionalConfig) (err error) {
 	exeName := plugins.GetLocalPluginExecutableName(pluginName)
+
+	// downloadCommand := generic.NewDownloadCommand()
 	downloadDetails := &httpclient.DownloadFileDetails{
 		FileName:      pluginName,
 		DownloadPath:  clientUtils.AddTrailingSlashIfNeeded(downloadUrl) + exeName,
@@ -211,7 +244,7 @@ func downloadPluginExec(downloadUrl, pluginName, pluginsDir string, httpDetails 
 		RelativePath:  exeName,
 	}
 	log.Debug("Downloading plugin's executable from:", downloadDetails.DownloadPath)
-	response, err := downloadFromArtifactory(downloadDetails, httpDetails, progressMgr)
+	response, err := downloadFromArtifactory(downloadDetails, httpDetails, progressMgr, ic)
 	if err != nil {
 		return
 	}
@@ -227,7 +260,7 @@ func downloadPluginExec(downloadUrl, pluginName, pluginsDir string, httpDetails 
 	return
 }
 
-func downloadPluginsResources(downloadUrl, pluginName, pluginsDir string, httpDetails httputils.HttpClientDetails, progressMgr ioutils.ProgressMgr) (err error) {
+func downloadPluginsResources(downloadUrl, pluginName, pluginsDir string, httpDetails httputils.HttpClientDetails, progressMgr ioutils.ProgressMgr, ic *InstallOptionalConfig) (err error) {
 	downloadDetails := &httpclient.DownloadFileDetails{
 		FileName:      pluginName,
 		DownloadPath:  clientUtils.AddTrailingSlashIfNeeded(downloadUrl) + coreutils.PluginsResourcesDirName + ".zip",
@@ -236,7 +269,7 @@ func downloadPluginsResources(downloadUrl, pluginName, pluginsDir string, httpDe
 		RelativePath:  coreutils.PluginsResourcesDirName + ".zip",
 	}
 	log.Debug("Downloading plugin's resources from:", downloadDetails.DownloadPath)
-	response, err := downloadFromArtifactory(downloadDetails, httpDetails, progressMgr)
+	response, err := downloadFromArtifactory(downloadDetails, httpDetails, progressMgr, ic)
 	if err != nil {
 		return
 	}
@@ -264,7 +297,7 @@ func downloadPluginsResources(downloadUrl, pluginName, pluginsDir string, httpDe
 	return
 }
 
-func downloadFromArtifactory(downloadDetails *httpclient.DownloadFileDetails, httpDetails httputils.HttpClientDetails, progressMgr ioutils.ProgressMgr) (response *http.Response, err error) {
+func downloadFromArtifactory(downloadDetails *httpclient.DownloadFileDetails, httpDetails httputils.HttpClientDetails, progressMgr ioutils.ProgressMgr, ic *InstallOptionalConfig) (response *http.Response, err error) {
 	client, err := httpclient.ClientBuilder().Build()
 	if err != nil {
 		return
