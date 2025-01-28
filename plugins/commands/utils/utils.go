@@ -1,15 +1,17 @@
 package utils
 
 import (
-	"github.com/jfrog/jfrog-cli-core/v2/utils/config"
-	"github.com/jfrog/jfrog-client-go/utils/errorutils"
-	"github.com/jfrog/jfrog-client-go/utils/io/httputils"
 	"io"
 	"os"
 	"os/exec"
 	"path"
 	"runtime"
 	"strings"
+
+	"github.com/jfrog/jfrog-cli-core/v2/common/build"
+	"github.com/jfrog/jfrog-cli-core/v2/utils/config"
+	"github.com/jfrog/jfrog-client-go/utils/errorutils"
+	"github.com/jfrog/jfrog-client-go/utils/io/httputils"
 )
 
 const (
@@ -132,12 +134,53 @@ func AssertPluginVersion(versionCmdOut string, expectedPluginVersion string) err
 type PluginBuildCmd struct {
 	OutputFullPath string
 	Env            map[string]string
+	UseJf          bool
+	Build          *build.BuildConfiguration
+	JfNoFallback   bool
 }
 
 func (buildCmd *PluginBuildCmd) GetCmd() *exec.Cmd {
-	var cmd []string
-	cmd = append(cmd, []string{"go", "build", "-o"}...)
-	cmd = append(cmd, buildCmd.OutputFullPath)
+	cmd := append([]string{}, "go", "build")
+
+	// you must set UseJf: true if you expect Build to work.
+	if buildCmd.UseJf {
+		cmd = append([]string{"jf"}, cmd...)
+
+		if buildCmd.Build != nil {
+			buildName, _ := buildCmd.Build.GetBuildName()
+
+			if buildName != "" {
+				cmd = append(cmd, "--build-name", buildName)
+			}
+
+			buildNumber, _ := buildCmd.Build.GetBuildNumber()
+
+			if buildNumber != "" {
+				cmd = append(cmd, "--build-number", buildNumber)
+			}
+
+			buildProject := buildCmd.Build.GetProject()
+
+			if buildProject != "" {
+				cmd = append(cmd, "--project", buildProject)
+			}
+
+			buildModule := buildCmd.Build.GetModule()
+
+			if buildModule != "" {
+				cmd = append(cmd, "--module", buildModule)
+			}
+			// TODO: else resolve from the go.mod?
+		}
+
+		if buildCmd.JfNoFallback {
+			cmd = append(cmd, "--no-fallback")
+		}
+	}
+
+	// append output flag
+	cmd = append(cmd, "-o", buildCmd.OutputFullPath)
+
 	return exec.Command(cmd[0], cmd[1:]...)
 }
 
