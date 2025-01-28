@@ -1,11 +1,18 @@
 package commands
 
 import (
+	"net/http"
+	"os"
+	"path"
+	"path/filepath"
+
 	buildinfoutils "github.com/jfrog/build-info-go/utils"
 	"github.com/jfrog/gofrog/io"
 	"github.com/jfrog/jfrog-cli-core/v2/artifactory/commands/generic"
 	commandsutils "github.com/jfrog/jfrog-cli-core/v2/artifactory/commands/utils"
+	artifactoryUtils "github.com/jfrog/jfrog-cli-core/v2/artifactory/utils"
 	rtutils "github.com/jfrog/jfrog-cli-core/v2/artifactory/utils"
+	"github.com/jfrog/jfrog-cli-core/v2/common/build"
 	commonCliUtils "github.com/jfrog/jfrog-cli-core/v2/common/cliutils"
 	"github.com/jfrog/jfrog-cli-core/v2/common/spec"
 	"github.com/jfrog/jfrog-cli-core/v2/utils/config"
@@ -19,38 +26,61 @@ import (
 	"github.com/jfrog/jfrog-client-go/utils/io/fileutils"
 	"github.com/jfrog/jfrog-client-go/utils/log"
 	"github.com/urfave/cli"
-	"net/http"
-	"os"
-	"path"
-	"path/filepath"
 )
 
 const pluginVersionCommandName = "-v"
+
+// optional pass-thru to upload commands
+type PublishOptionalConfig struct {
+	build  *build.BuildConfiguration
+	config *artifactoryUtils.UploadConfiguration
+}
 
 func PublishCmd(c *cli.Context) error {
 	if c.NArg() != 2 {
 		return cliutils.WrongNumberOfArgumentsHandler(c)
 	}
 
+	pc := &PublishOptionalConfig{}
+
+	// upload config pass-thru
+	configuration, err := cliutils.CreateUploadConfiguration(c)
+
+	if err != nil {
+		return err
+	}
+
+	pc.config = configuration
+
+	// build configuration pass-thru
+	buildConfiguration, err := cliutils.CreateBuildConfigurationWithModule(c)
+
+	if err != nil {
+		return err
+	}
+
+	pc.build = buildConfiguration
+
+	// rt details pass-thru
 	rtDetails, err := getRtDetails(c)
 	if err != nil {
 		return err
 	}
 
-	return runPublishCmd(c.Args().Get(0), c.Args().Get(1), rtDetails)
+	return runPublishCmd(c.Args().Get(0), c.Args().Get(1), rtDetails, pc)
 }
 
-func runPublishCmd(pluginName, pluginVersion string, rtDetails *config.ServerDetails) error {
+func runPublishCmd(pluginName, pluginVersion string, rtDetails *config.ServerDetails, pc *PublishOptionalConfig) error {
 	err := verifyUniqueVersion(pluginName, pluginVersion, rtDetails)
 	if err != nil {
 		return err
 	}
 
-	return doPublish(pluginName, pluginVersion, rtDetails)
+	return doPublish(pluginName, pluginVersion, rtDetails, pc)
 }
 
 // Build and upload the plugin for every supported architecture.
-func doPublish(pluginName, pluginVersion string, rtDetails *config.ServerDetails) error {
+func doPublish(pluginName, pluginVersion string, rtDetails *config.ServerDetails, pc *PublishOptionalConfig) error {
 	tmpDir, err := fileutils.CreateTempDir()
 	if err != nil {
 		return err
@@ -69,7 +99,7 @@ func doPublish(pluginName, pluginVersion string, rtDetails *config.ServerDetails
 	// Build and upload the plugin for all architectures.
 	// Start with the local architecture, to assert versions match before uploading.
 	for _, arc := range arcs {
-		pluginPath, err := buildPlugin(pluginName, tmpDir, utils.ArchitecturesMap[arc])
+		pluginPath, err := buildPlugin(pluginName, tmpDir, utils.ArchitecturesMap[arc], pc)
 		if err != nil {
 			return err
 		}
@@ -79,7 +109,7 @@ func doPublish(pluginName, pluginVersion string, rtDetails *config.ServerDetails
 				return err
 			}
 		}
-		err = uploadPlugin(pluginPath, pluginName, pluginVersion, arc, rtDetails)
+		err = uploadPlugin(pluginPath, pluginName, pluginVersion, arc, rtDetails, pc)
 		if err != nil {
 			return err
 		}
@@ -124,16 +154,35 @@ func verifyMatchingVersion(pluginFullPath, pluginVersion string) error {
 	return utils.AssertPluginVersion(output, pluginVersion)
 }
 
-func buildPlugin(pluginName, tmpDir string, arc utils.Architecture) (string, error) {
+func buildPlugin(pluginName, tmpDir string, arc utils.Architecture, pc *PublishOptionalConfig) (string, error) {
 	log.Info("Building plugin for: " + arc.Goos + "-" + arc.Goarch + "...")
 	outputPath := filepath.Join(tmpDir, pluginName+arc.FileExtension)
+	log.Debug("Plugin output path: ", outputPath)
+
 	buildCmd := utils.PluginBuildCmd{
 		OutputFullPath: outputPath,
+		// TODO: pipe in ENV from c cli.Context?
 		Env: map[string]string{
-			"GOOS":   arc.Goos,
-			"GOARCH": arc.Goarch,
+			"GOOS":        arc.Goos,
+			"GOARCH":      arc.Goarch,
+			"CGO_ENABLED": os.Getenv("CGO_ENABLED"),
 		},
+		UseJf:        false,
+		JfNoFallback: false,
 	}
+
+	// if optional build info is set, prepend "jf rt" in front of "go" build command
+	if pc.build != nil {
+		buildCmd.UseJf = true // required for Build to work
+		buildCmd.Build = pc.build
+	}
+
+	if buildCmd.UseJf {
+		// if we are using JF for go build we can use the --no-fallback option
+		// TODO: pipe arg from context
+		buildCmd.JfNoFallback = true
+	}
+
 	err := io.RunCmd(&buildCmd)
 	if err != nil {
 		return "", errorutils.CheckError(err)
@@ -141,6 +190,7 @@ func buildPlugin(pluginName, tmpDir string, arc utils.Architecture) (string, err
 	return outputPath, nil
 }
 
+// TODO: difference between this and cliutils.CreateArtifactoryDetailsByFlags?
 // Get the Artifactory details corresponding to the server ID provided by env.
 func getRtDetails(c *cli.Context) (*config.ServerDetails, error) {
 	serverId := os.Getenv(utils.PluginsServerEnv)
@@ -178,7 +228,7 @@ func verifyUniqueVersion(pluginName, pluginVersion string, rtDetails *config.Ser
 	return errorutils.CheckResponseStatus(resp, http.StatusUnauthorized, http.StatusNotFound)
 }
 
-func uploadPlugin(pluginLocalPath, pluginName, pluginVersion, arc string, rtDetails *config.ServerDetails) error {
+func uploadPlugin(pluginLocalPath, pluginName, pluginVersion, arc string, rtDetails *config.ServerDetails, pc *PublishOptionalConfig) error {
 	pluginDirRtPath := utils.GetPluginDirPath(pluginName, pluginVersion, arc)
 	log.Info("Upload plugin to: " + pluginDirRtPath + "...")
 	// First uploading resources directory (this is the complex part). If the upload is successful, upload the executable file.
@@ -195,7 +245,7 @@ func uploadPlugin(pluginLocalPath, pluginName, pluginVersion, arc string, rtDeta
 		if !empty {
 			resourcesPattern := filepath.Join(coreutils.PluginsResourcesDirName, "(*)")
 			resourcesTargetPath := path.Join(pluginDirRtPath, coreutils.PluginsResourcesDirName+".zip")
-			err = uploadPluginsResources(resourcesPattern, resourcesTargetPath, rtDetails)
+			err = uploadPluginsResources(resourcesPattern, resourcesTargetPath, rtDetails, pc)
 			if err != nil {
 				return err
 			}
@@ -203,16 +253,16 @@ func uploadPlugin(pluginLocalPath, pluginName, pluginVersion, arc string, rtDeta
 	}
 	// Upload plugin's executable
 	execTargetPath := path.Join(pluginDirRtPath, utils.GetPluginExecutableName(pluginName, arc))
-	err = uploadPluginsExec(pluginLocalPath, execTargetPath, rtDetails)
+	err = uploadPluginsExec(pluginLocalPath, execTargetPath, rtDetails, pc)
 	if err != nil {
 		return err
 	}
 	return nil
 }
 
-func uploadPluginsExec(pattern, target string, rtDetails *config.ServerDetails) error {
+func uploadPluginsExec(pattern, target string, rtDetails *config.ServerDetails, pc *PublishOptionalConfig) error {
 	log.Debug("Upload plugin's executable to: " + target + "...")
-	result, err := createAndRunPluginsExecUploadCommand(pattern, target, rtDetails)
+	result, err := createAndRunPluginsExecUploadCommand(pattern, target, rtDetails, pc)
 	if err != nil {
 		return err
 	}
@@ -225,9 +275,9 @@ func uploadPluginsExec(pattern, target string, rtDetails *config.ServerDetails) 
 	return nil
 }
 
-func uploadPluginsResources(pattern, target string, rtDetails *config.ServerDetails) error {
+func uploadPluginsResources(pattern, target string, rtDetails *config.ServerDetails, pc *PublishOptionalConfig) error {
 	log.Debug("Upload plugin's resources to: " + target + "...")
-	result, err := createAndRunPluginsResourcesUploadCommand(pattern, target, rtDetails)
+	result, err := createAndRunPluginsResourcesUploadCommand(pattern, target, rtDetails, pc)
 	if err != nil {
 		return err
 	}
@@ -240,11 +290,12 @@ func uploadPluginsResources(pattern, target string, rtDetails *config.ServerDeta
 	return nil
 }
 
-func createAndRunPluginsExecUploadCommand(pattern, target string, rtDetails *config.ServerDetails) (*commandsutils.Result, error) {
+func createAndRunPluginsExecUploadCommand(pattern, target string, rtDetails *config.ServerDetails, pc *PublishOptionalConfig) (*commandsutils.Result, error) {
 	uploadCmd := generic.NewUploadCommand()
-	uploadCmd.SetUploadConfiguration(createUploadConfiguration()).
-		SetServerDetails(rtDetails).
+	applyOptionalConfig(uploadCmd, pc)
+	uploadCmd.SetServerDetails(rtDetails).
 		SetSpec(createExecUploadSpec(pattern, target))
+
 	err := uploadCmd.Run()
 	if err != nil {
 		return nil, err
@@ -252,11 +303,33 @@ func createAndRunPluginsExecUploadCommand(pattern, target string, rtDetails *con
 	return uploadCmd.Result(), nil
 }
 
-func createAndRunPluginsResourcesUploadCommand(pattern, target string, rtDetails *config.ServerDetails) (*commandsutils.Result, error) {
+func applyOptionalConfig(uc *generic.UploadCommand, pc *PublishOptionalConfig) *generic.UploadCommand {
+	uc.SetUploadConfiguration(createUploadConfiguration())
+
+	if pc != nil {
+		log.Debug("PublishOptionalConfig")
+
+		if pc.config != nil {
+			// override if set
+			uc.SetUploadConfiguration(pc.config)
+			log.Debug("Attaching upload configuration ", pc.config)
+		}
+
+		if pc.build != nil {
+			uc.SetBuildConfiguration(pc.build)
+			log.Debug("Attaching build configuration ", pc.build)
+		}
+	}
+
+	return uc
+}
+
+func createAndRunPluginsResourcesUploadCommand(pattern, target string, rtDetails *config.ServerDetails, pc *PublishOptionalConfig) (*commandsutils.Result, error) {
 	uploadCmd := generic.NewUploadCommand()
-	uploadCmd.SetUploadConfiguration(createUploadConfiguration()).
-		SetServerDetails(rtDetails).
+	applyOptionalConfig(uploadCmd, pc)
+	uploadCmd.SetServerDetails(rtDetails).
 		SetSpec(createResourcesUploadSpec(pattern, target))
+
 	err := uploadCmd.Run()
 	if err != nil {
 		return nil, err
