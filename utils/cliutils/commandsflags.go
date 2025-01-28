@@ -115,6 +115,9 @@ const (
 	// TransferInstall commands keys
 	TransferInstall = "transfer-plugin-install"
 
+	// plugin commands keys
+	PluginPublish = "plugin-publish"
+
 	// Access Token Create commands keys
 	AccessTokenCreate = "access-token-create"
 	ExchangeOidcToken = "exchange-oidc-token"
@@ -575,6 +578,9 @@ const (
 	SigningKey     = "signing-key"
 	setupRepo      = repo
 	PromotionType  = "promotion-type"
+
+	// plugin flags
+	PluginPublishForce = "plugin-publish-" + Force // alias to force, different description
 )
 
 var flagsMap = map[string]cli.Flag{
@@ -1236,6 +1242,10 @@ var flagsMap = map[string]cli.Flag{
 		Name:  Force,
 		Usage: "[Default: false] Set to true to allow config transfer to a non-empty Artifactory server.` `",
 	},
+	PluginPublishForce: cli.BoolFlag{
+		Name:  Force,
+		Usage: "[Default: false] Set to true to overwrite existing files and ignore failed architectures.` `",
+	},
 	Verbose: cli.BoolFlag{
 		Name:  Verbose,
 		Usage: "[Default: false] Set to true to increase verbosity during the export configuration from the source Artifactory phase.` `",
@@ -1710,7 +1720,6 @@ var flagsMap = map[string]cli.Flag{
 	runNative: cli.BoolFlag{
 		Name:  runNative,
 		Usage: "[Default: false] Set to true if you'd like to use the native client configurations. Note: This flag would invoke native client behind the scenes, has performance implications and does not support deployment view and detailed summary` `",
-	
 	},
 	validateSha: cli.BoolFlag{
 		Name:  validateSha,
@@ -2044,6 +2053,24 @@ var commandFlags = map[string][]string{
 	},
 	Setup: {
 		serverId, url, user, password, accessToken, sshPassphrase, sshKeyPath, ClientCertPath, ClientCertKeyPath, Project, setupRepo,
+	},
+	// Plugin commands
+	PluginPublish: {
+		// relevant upload commands
+		// url, user, password, accessToken, sshPassphrase, sshKeyPath, serverId,
+		// ClientCertPath,
+		// ClientCertKeyPath, specFlag, specVars, uploadExclusions,
+		// uploadRecursive, uploadFlat, uploadRegexp, retries, retryWaitTime, dryRun, uploadExplode, includeDirs,
+		// failNoOp, uploadSyncDeletes, syncDeletesQuiet, InsecureTls, detailedSummary,
+		// uploadAnt, uploadArchive,
+		// uploadTargetProps,
+		threads, deb, uploadMinSplit, uploadSplitCount, ChunkSize,
+		// relevant build commands
+		BuildName, BuildNumber, module, Project,
+		// publish-specific flags
+		PluginPublishForce,
+		// general re-used
+		symlinks,
 	},
 }
 
