@@ -129,6 +129,9 @@ const (
 	ReleaseBundleExport       = "release-bundle-export"
 	ReleaseBundleImport       = "release-bundle-import"
 
+	// plugin commands keys
+	PluginPublish = "plugin-publish"
+
 	// Access Token Create commands keys
 	AccessTokenCreate = "access-token-create"
 
@@ -587,6 +590,9 @@ const (
 	lcDryRun             = lifecyclePrefix + dryRun
 	lcIncludeRepos       = lifecyclePrefix + IncludeRepos
 	lcExcludeRepos       = lifecyclePrefix + ExcludeRepos
+
+	// plugin flags
+	PluginPublishForce = "plugin-publish-" + Force // alias to force, different description
 )
 
 var flagsMap = map[string]cli.Flag{
@@ -1235,6 +1241,10 @@ var flagsMap = map[string]cli.Flag{
 	Force: cli.BoolFlag{
 		Name:  Force,
 		Usage: "[Default: false] Set to true to allow config transfer to a non-empty Artifactory server.` `",
+	},
+	PluginPublishForce: cli.BoolFlag{
+		Name:  Force,
+		Usage: "[Default: false] Set to true to overwrite existing files and ignore failed architectures.` `",
 	},
 	Verbose: cli.BoolFlag{
 		Name:  Verbose,
@@ -2090,6 +2100,24 @@ var commandFlags = map[string][]string{
 	},
 	SyncStatus: {
 		branch, repository, serverId,
+	},
+	// Plugin commands
+	PluginPublish: {
+		// relevant upload commands
+		// url, user, password, accessToken, sshPassphrase, sshKeyPath, serverId,
+		// ClientCertPath,
+		// ClientCertKeyPath, specFlag, specVars, uploadExclusions,
+		// uploadRecursive, uploadFlat, uploadRegexp, retries, retryWaitTime, dryRun, uploadExplode, includeDirs,
+		// failNoOp, uploadSyncDeletes, syncDeletesQuiet, InsecureTls, detailedSummary,
+		// uploadAnt, uploadArchive,
+		// uploadTargetProps,
+		threads, deb, uploadMinSplit, uploadSplitCount, ChunkSize,
+		// relevant build commands
+		BuildName, BuildNumber, module, Project,
+		// publish-specific flags
+		PluginPublishForce,
+		// general re-used
+		symlinks,
 	},
 }
 

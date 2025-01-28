@@ -32,8 +32,10 @@ const pluginVersionCommandName = "-v"
 
 // optional pass-thru to upload commands
 type PublishOptionalConfig struct {
-	build  *build.BuildConfiguration
-	config *artifactoryUtils.UploadConfiguration
+	force    bool
+	symlinks bool
+	build    *build.BuildConfiguration
+	config   *artifactoryUtils.UploadConfiguration
 }
 
 func PublishCmd(c *cli.Context) error {
@@ -41,7 +43,10 @@ func PublishCmd(c *cli.Context) error {
 		return cliutils.WrongNumberOfArgumentsHandler(c)
 	}
 
-	pc := &PublishOptionalConfig{}
+	pc := &PublishOptionalConfig{
+		force:    c.Bool(cliutils.Force),
+		symlinks: c.Bool("symlinks"), // TODO implement
+	}
 
 	// upload config pass-thru
 	configuration, err := cliutils.CreateUploadConfiguration(c)
@@ -70,10 +75,38 @@ func PublishCmd(c *cli.Context) error {
 	return runPublishCmd(c.Args().Get(0), c.Args().Get(1), rtDetails, pc)
 }
 
+type QueuedFunction struct {
+	action   func() error
+	rollback func() error
+}
+
+// Function to execute the queued functions
+func executeQueue(queue []QueuedFunction) error {
+	for _, qf := range queue {
+		if err := qf.action(); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// Function to perform rollback on queued functions
+func rollbackQueue(queue []QueuedFunction) error {
+	for i := len(queue) - 1; i >= 0; i-- {
+		if err := queue[i].rollback(); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 func runPublishCmd(pluginName, pluginVersion string, rtDetails *config.ServerDetails, pc *PublishOptionalConfig) error {
 	err := verifyUniqueVersion(pluginName, pluginVersion, rtDetails)
 	if err != nil {
-		return err
+		if !pc.force {
+			return err
+		}
+		log.Warn(err)
 	}
 
 	return doPublish(pluginName, pluginVersion, rtDetails, pc)
@@ -96,22 +129,60 @@ func doPublish(pluginName, pluginVersion string, rtDetails *config.ServerDetails
 		return err
 	}
 
+	var queue []QueuedFunction
+
 	// Build and upload the plugin for all architectures.
 	// Start with the local architecture, to assert versions match before uploading.
 	for _, arc := range arcs {
-		pluginPath, err := buildPlugin(pluginName, tmpDir, utils.ArchitecturesMap[arc], pc)
+		baseBinDir := path.Join(tmpDir, utils.GetPluginDirPath(pluginName, pluginVersion, arc))
+		log.Debug("Using base bin dir (create all dirs recursive): ", baseBinDir)
+		err := os.MkdirAll(baseBinDir, os.ModePerm)
 		if err != nil {
+			if pc.force {
+				log.Warn(err)
+				continue
+			}
 			return err
 		}
+
+		pluginPath, err := buildPlugin(pluginName, baseBinDir, utils.ArchitecturesMap[arc], pc)
+		if err != nil {
+			if pc.force {
+				log.Warn(err)
+				continue
+			}
+			return err
+		}
+
 		if arc == localArc {
 			err = verifyMatchingVersion(pluginPath, pluginVersion)
 			if err != nil {
+				if pc.force {
+					log.Warn(err)
+					continue
+				}
 				return err
 			}
 		}
-		err = uploadPlugin(pluginPath, pluginName, pluginVersion, arc, rtDetails, pc)
-		if err != nil {
-			return err
+
+		// queue upload for after all builds
+		queue = append(queue, QueuedFunction{
+			action: func() error {
+				return uploadPlugin(pluginPath, pluginName, pluginVersion, arc, rtDetails, pc)
+			},
+			rollback: func() error {
+				log.Debug("TODO: Handle deletion of resource ", pluginPath, " ", pluginName, " ", pluginVersion)
+				return nil
+			},
+		})
+	}
+
+	// Execute the queued functions and perform a rollback if an error occurs
+	if err := executeQueue(queue); err != nil {
+		log.Error(err)
+
+		if rerr := rollbackQueue(queue); rerr != nil {
+			return errorutils.CheckErrorf("Unable to rollback.. this is embarassing", rerr)
 		}
 	}
 
@@ -154,9 +225,9 @@ func verifyMatchingVersion(pluginFullPath, pluginVersion string) error {
 	return utils.AssertPluginVersion(output, pluginVersion)
 }
 
-func buildPlugin(pluginName, tmpDir string, arc utils.Architecture, pc *PublishOptionalConfig) (string, error) {
+func buildPlugin(pluginName, baseDir string, arc utils.Architecture, pc *PublishOptionalConfig) (string, error) {
 	log.Info("Building plugin for: " + arc.Goos + "-" + arc.Goarch + "...")
-	outputPath := filepath.Join(tmpDir, pluginName+arc.FileExtension)
+	outputPath := filepath.Join(baseDir, pluginName+arc.FileExtension)
 	log.Debug("Plugin output path: ", outputPath)
 
 	buildCmd := utils.PluginBuildCmd{
@@ -172,11 +243,13 @@ func buildPlugin(pluginName, tmpDir string, arc utils.Architecture, pc *PublishO
 
 	// if optional build info is set, prepend "jf rt" in front of "go" build command
 	if pc.build != nil {
+		log.Debug("Setting UseJf true because one or more build options are set.")
 		buildCmd.UseJf = true // required for Build to work
 		buildCmd.Build = pc.build
 	}
 
 	if buildCmd.UseJf {
+		log.Debug("Setting JfNoFallback because UseJf is set.")
 		// if we are using JF for go build we can use the --no-fallback option
 		// TODO: pipe arg from context
 		buildCmd.JfNoFallback = true

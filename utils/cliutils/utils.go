@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/jfrog/jfrog-cli-core/v2/artifactory/utils/commandsummary"
 	"io"
 	"net/http"
 	"os"
@@ -12,6 +11,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/jfrog/jfrog-cli-core/v2/artifactory/utils/commandsummary"
 
 	"github.com/jfrog/gofrog/version"
 	"github.com/jfrog/jfrog-client-go/utils/log"
