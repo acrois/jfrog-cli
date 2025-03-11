@@ -2,6 +2,7 @@ package commands
 
 import (
 	"errors"
+	"io/fs"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -268,7 +269,11 @@ func downloadPluginsResources(downloadUrl, pluginName, pluginsDir string, httpDe
 		LocalFileName: coreutils.PluginsResourcesDirName + ".zip",
 		RelativePath:  coreutils.PluginsResourcesDirName + ".zip",
 	}
+	resourceDir := filepath.Join(downloadDetails.LocalPath, coreutils.PluginsResourcesDirName) + string(os.PathSeparator)
+
 	log.Debug("Downloading plugin's resources from:", downloadDetails.DownloadPath)
+
+	// perform the download
 	response, err := downloadFromArtifactory(downloadDetails, httpDetails, progressMgr, ic)
 	if err != nil {
 		return
@@ -281,18 +286,34 @@ func downloadPluginsResources(downloadUrl, pluginName, pluginsDir string, httpDe
 	if err != nil {
 		return
 	}
-	err = archiver.Unarchive(filepath.Join(downloadDetails.LocalPath, downloadDetails.LocalFileName), filepath.Join(downloadDetails.LocalPath, coreutils.PluginsResourcesDirName)+string(os.PathSeparator))
+
+	// remove directory if it exists
+	_, err = os.Stat(resourceDir)
+	if err != nil && !errors.Is(err, fs.ErrExist) {
+		err = os.RemoveAll(resourceDir)
+		if err != nil {
+			return
+		}
+	}
+
+	// extract archive into the clean structure
+	err = archiver.Unarchive(filepath.Join(downloadDetails.LocalPath, downloadDetails.LocalFileName), resourceDir)
 	if errorutils.CheckError(err) != nil {
 		return
 	}
+
+	// clean up the resource archive
 	err = os.Remove(filepath.Join(downloadDetails.LocalPath, downloadDetails.LocalFileName))
 	if err != nil {
 		return
 	}
+
+	// ensure proper file permissions
 	err = coreutils.ChmodPluginsDirectoryContent()
 	if errorutils.CheckError(err) != nil {
 		return
 	}
+
 	log.Debug("Plugin's resources downloaded successfully.")
 	return
 }
