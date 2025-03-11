@@ -32,6 +32,7 @@ const pluginVersionCommandName = "-v"
 
 // optional pass-thru to upload commands
 type PublishOptionalConfig struct {
+	latest   bool
 	force    bool
 	symlinks bool
 	build    *build.BuildConfiguration
@@ -46,6 +47,7 @@ func PublishCmd(c *cli.Context) error {
 	pc := &PublishOptionalConfig{
 		force:    c.Bool(cliutils.Force),
 		symlinks: c.Bool("symlinks"), // TODO implement
+		latest:   c.BoolT("latest"),  // true by default for backwards-compatibility
 	}
 
 	// upload config pass-thru
@@ -186,7 +188,12 @@ func doPublish(pluginName, pluginVersion string, rtDetails *config.ServerDetails
 		}
 	}
 
-	return copyToLatestDir(pluginName, pluginVersion, rtDetails)
+	// feature flag to enable copying to the "latest" directory.
+	if pc.latest {
+		return copyToLatestDir(pluginName, pluginVersion, rtDetails)
+	}
+
+	return nil
 }
 
 // Returns a slice of all supported architectures names, starting with the local architecture.
