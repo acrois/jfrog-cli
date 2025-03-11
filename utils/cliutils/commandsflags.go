@@ -580,7 +580,9 @@ const (
 	PromotionType  = "promotion-type"
 
 	// plugin flags
-	PluginPublishForce = "plugin-publish-" + Force // alias to force, different description
+	Latest              = "latest"
+	PluginPublishForce  = "plugin-publish-" + Force // alias to force, different description
+	PluginPublishLatest = "plugin-publish-" + Latest
 )
 
 var flagsMap = map[string]cli.Flag{
@@ -1245,6 +1247,10 @@ var flagsMap = map[string]cli.Flag{
 	PluginPublishForce: cli.BoolFlag{
 		Name:  Force,
 		Usage: "[Default: false] Set to true to overwrite existing files and ignore failed architectures.` `",
+	},
+	PluginPublishLatest: cli.BoolTFlag{
+		Name:  Latest,
+		Usage: "[Default: true] Copy the built plugin to the latest directory automatically after publishing.` `",
 	},
 	Verbose: cli.BoolFlag{
 		Name:  Verbose,
@@ -2069,6 +2075,7 @@ var commandFlags = map[string][]string{
 		BuildName, BuildNumber, module, Project,
 		// publish-specific flags
 		PluginPublishForce,
+		PluginPublishLatest,
 		// general re-used
 		symlinks,
 	},
