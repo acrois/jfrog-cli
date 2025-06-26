@@ -288,8 +288,9 @@ func downloadPluginsResources(downloadUrl, pluginName, pluginsDir string, httpDe
 	}
 
 	// remove directory if it exists
-	_, err = os.Stat(resourceDir)
-	if err != nil && !errors.Is(err, fs.ErrExist) {
+	d, err := os.Stat(resourceDir)
+	log.Debug("Directory check ", d, err)
+	if err != nil && errors.Is(err, fs.ErrExist) {
 		err = os.RemoveAll(resourceDir)
 		if err != nil {
 			return
