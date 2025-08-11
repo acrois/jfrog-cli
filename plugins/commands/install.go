@@ -9,7 +9,9 @@ import (
 	"strings"
 
 	"github.com/jfrog/archiver/v3"
-	artifactoryUtils "github.com/jfrog/jfrog-cli-core/v2/artifactory/utils"
+	artifactoryUtils "github.com/jfrog/jfrog-cli-artifactory/artifactory/utils"
+	coreArtifactoryUtils "github.com/jfrog/jfrog-cli-core/v2/artifactory/utils"
+	"github.com/jfrog/jfrog-cli-core/v2/plugins/components"
 	"github.com/jfrog/jfrog-cli-core/v2/utils/config"
 	"github.com/jfrog/jfrog-cli-core/v2/utils/plugins"
 	commandsUtils "github.com/jfrog/jfrog-cli/plugins/commands/utils"
@@ -30,7 +32,7 @@ import (
 
 type InstallOptionalConfig struct {
 	build  *build.BuildConfiguration
-	config *artifactoryUtils.DownloadConfiguration
+	config *coreArtifactoryUtils.DownloadConfiguration
 }
 
 func InstallCmd(c *cli.Context) error {
@@ -53,7 +55,9 @@ func InstallCmd(c *cli.Context) error {
 	ic := &InstallOptionalConfig{}
 
 	// download config pass-thru
-	configuration, err := cliutils.CreateDownloadConfiguration(c)
+	configuration, err := artifactoryUtils.CreateDownloadConfiguration(&components.Context{
+		Arguments: c.Args(),
+	})
 
 	if err != nil {
 		return err
