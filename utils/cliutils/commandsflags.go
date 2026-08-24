@@ -697,6 +697,11 @@ const (
 	mcpDryRun     = "mcp-dry-run"
 	mcpSkipCheck  = "mcp-skip-check"
 	mcpShowFormat = "mcp-show-format"
+
+	// plugin flags
+	Latest              = "latest"
+	PluginPublishForce  = "plugin-publish-" + Force // alias to force, different description
+	PluginPublishLatest = "plugin-publish-" + Latest
 )
 
 var flagsMap = map[string]cli.Flag{
@@ -1559,6 +1564,14 @@ var flagsMap = map[string]cli.Flag{
 	Force: cli.BoolFlag{
 		Name:  Force,
 		Usage: "[Default: false] Set to true to allow config transfer to a non-empty Artifactory server.` `",
+	},
+	PluginPublishForce: cli.BoolFlag{
+		Name:  Force,
+		Usage: "[Default: false] Set to true to overwrite existing files and ignore failed architectures.` `",
+	},
+	PluginPublishLatest: cli.BoolTFlag{
+		Name:  Latest,
+		Usage: "[Default: true] Copy the built plugin to the latest directory automatically after publishing.` `",
 	},
 	Verbose: cli.BoolFlag{
 		Name:  Verbose,
@@ -2452,6 +2465,11 @@ var commandFlags = map[string][]string{
 	},
 	PluginPublish: {
 		pluginPublishFormat,
+		threads, deb, uploadMinSplit, uploadSplitCount, ChunkSize,
+		BuildName, BuildNumber, module, Project,
+		PluginPublishForce,
+		PluginPublishLatest,
+		symlinks,
 	},
 	// Mission Control's commands
 	McConfig: {

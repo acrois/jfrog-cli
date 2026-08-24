@@ -249,3 +249,17 @@ require (
 // replace github.com/jfrog/jfrog-client-go => github.com/jfrog/jfrog-client-go v1.54.2-0.20251007084958-5eeaa42c31a6
 
 // replace github.com/jfrog/jfrog-cli-artifactory => github.com/jfrog/jfrog-cli-artifactory v0.8.1-0.20260818062137-18e36e626c63
+
+// Local sibling modules on the aaronc branch (acrois forks). Official
+// published versions are used when these paths are absent.
+replace github.com/jfrog/jfrog-cli-core/v2 => ../jfrog-cli-core
+
+replace github.com/jfrog/jfrog-client-go => ../jfrog-client-go
+
+replace github.com/jfrog/build-info-go => ../build-info-go
+
+replace github.com/jfrog/jfrog-cli-artifactory => ../jfrog-cli-artifactory
+
+replace github.com/jfrog/jfrog-cli-security => ../jfrog-cli-security
+
+replace github.com/jfrog/jfrog-cli-platform-services => ../jfrog-cli-platform-services
